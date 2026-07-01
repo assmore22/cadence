@@ -1,0 +1,15 @@
+{
+  "project": "20-cadence",
+  "name": "Cadence",
+  "network": "testnetBradbury",
+  "chainId": 4221,
+  "rpc": "https://rpc-bradbury.genlayer.com",
+  "explorer": "https://explorer-bradbury.genlayer.com",
+  "contractAddress": "0x444E17A449fdECeEEB93eFA470C2833c7a6E3681",
+  "deployTxHash": "0x096e87a333589a156b000b5c1235a43e2953f7bc9201f122edff2048a701d338",
+  "contractExplorer": "https://explorer-bradbury.genlayer.com/address/0x444E17A449fdECeEEB93eFA470C2833c7a6E3681",
+  "deployer": "0xdAa923b817C6116f2463957542FB29F6Ba671FE8",
+  "deployedAt": "2026-07-01T15:52:01.109Z",
+  "statusName": 5,
+  "smoke": {}
+}
