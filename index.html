@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence - Uptime, bonded and verified</title>
+<meta name="description" content="SLA / uptime escrow on GenLayer. A provider bonds a service promise; a validator set reads the endpoint and rules whether it's healthy. A breach pays the subscriber automatically. A status page that pays out." />
+<link rel="stylesheet" href="./styles.css?v=6">
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#"><span class="logo-mark"><i class="ph-fill ph-pulse"></i></span> Cadence</a>
+  <div class="top-end">
+    <span id="walletslot"><button class="btn ghost sm" id="connectBtn">Connect</button></span>
+    <button class="btn primary sm" id="navPostBtn"><i class="ph-bold ph-plus"></i> Register service</button>
+  </div>
+</header>
+
+<!-- STATUS BANNER -->
+<section class="status-banner" id="statusBanner">
+  <div class="sb-inner">
+    <span class="sb-dot" id="sbDot"></span>
+    <div class="sb-text"><h1 id="sbHeadline">Checking status...</h1><p id="sbSub">Reading the chain</p></div>
+    <div class="sb-stats">
+      <div><b id="stOperational">0</b><span>operational</span></div>
+      <div><b id="stBreached">0</b><span>breached</span></div>
+      <div><b id="stBonded">0</b><span>GEN bonded</span></div>
+      <button class="btn line sm" id="refreshBtn"><i class="ph-bold ph-arrows-clockwise"></i> Sync</button>
+    </div>
+  </div>
+</section>
+
+<main class="board-wrap">
+  <div class="board-h"><span>Monitored services</span><span class="mono" id="svcCount">-</span></div>
+  <div class="board" id="board"><div class="b-empty">Reading the chain…</div></div>
+  <p class="board-note"><i class="ph-bold ph-info"></i> Anyone can run a check. The contract reads the endpoint and a validator set rules whether it's healthy - a breach pays the subscriber's bond automatically.</p>
+</main>
+
+<footer class="footer">
+  <div class="foot-base">
+    <span>Cadence · SLA &amp; uptime escrow on GenLayer studionet</span>
+    <span class="foot-links"><a id="contractLink" href="https://explorer-studio.genlayer.com/contracts/0x8814b925F9Db3A4B89b127339190125d65ec319B" target="_blank" rel="noopener">Contract 0x8814...319B -></a><a href="https://docs.genlayer.com/" target="_blank" rel="noopener">GenLayer ↗</a><span class="net"><span class="net-dot"></span>studionet live</span></span>
+  </div>
+</footer>
+
+<!-- CENTERED MODAL (not a side drawer) -->
+<div class="modal-scrim" id="scrim">
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-h"><h3 id="modalTitle">Register a service</h3><button class="icon-btn" id="closeModal" aria-label="Close"><i class="ph-bold ph-x"></i></button></div>
+    <div class="modal-b" id="modalBody"></div>
+  </div>
+</div>
+<div id="log"></div>
+<script type="module" src="./app.js?v=1"></script>
+</body>
+</html>
