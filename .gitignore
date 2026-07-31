@@ -19,3 +19,7 @@ private-keys.json
 __pycache__/
 .pytest_cache/
 .serve/
+
+# local secrets and generated state
+*.pyc
+artifacts/

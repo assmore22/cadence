@@ -2,6 +2,7 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 from genlayer import *
 import json
+from datetime import datetime, timezone
 
 
 STATUSES = ("ACTIVE", "CHECKING", "CHECKED", "CHALLENGE_WINDOW", "APPEALED", "BREACHED", "CLOSED", "ARCHIVED")
@@ -11,6 +12,10 @@ LEGACY_BREACHED = 1
 LEGACY_CLOSED = 2
 MAX_INPUT = 4000
 MAX_URL = 600
+
+
+def _now() -> int:
+    return int(datetime.now(timezone.utc).timestamp())
 
 
 def _s(value, limit: int = MAX_INPUT) -> str:
@@ -131,12 +136,16 @@ def _norm_ruling(raw, allowed: tuple, default: str) -> dict:
     if ruling not in allowed:
         ruling = default
     delta = _bounded_int(data.get("confidenceDeltaBps", 0), -4000, 4000, 0)
+    revised = _s(data.get("revisedOutcome", "unclear"), 40).lower()
+    if revised not in OUTCOMES or revised == "pending":
+        revised = "unclear"
     reason = _s(data.get("reason", data.get("rationale", "")), 700)
     if reason == "":
         reason = "Ruling: " + ruling
     return {
         "ruling": ruling,
         "confidenceDeltaBps": delta,
+        "revisedOutcome": revised,
         "reason": reason,
         "riskFlags": _slist(data.get("riskFlags", []), 12, 80),
         "reasoningDigest": _s(data.get("reasoningDigest", ""), 360),
@@ -175,7 +184,8 @@ def _ruling_prompt(kind: str, sla: dict, prior: str, filing: str, evidence_text:
         "\nCURRENT OUTCOME: " + prior +
         "\nFILING:\n" + filing +
         "\nEVIDENCE TEXT:\n" + evidence_text +
-        "\nReply ONLY JSON with keys: ruling ('" + opts + "'), confidenceDeltaBps, reason, riskFlags array, reasoningDigest."
+        "\nReply ONLY JSON with keys: ruling ('" + opts + "'), revisedOutcome "
+        "('healthy','breach','degraded','unclear'), confidenceDeltaBps, reason, riskFlags array, reasoningDigest."
     )
 
 
@@ -190,10 +200,40 @@ class Cadence(gl.Contract):
     profiles: DynArray[str]
     recent_ids: DynArray[str]
     cadence_standard: str
+    admin: str
     clock: u256
 
     def __init__(self) -> None:
-        pass
+        self.admin = gl.message.sender_address.as_hex
+        self.clock = 0
+
+    def _require_admin(self) -> None:
+        if gl.message.sender_address.as_hex.lower() != self.admin.lower():
+            raise Exception("admin_only")
+
+    def _require_operator(self, record: dict) -> None:
+        actor = gl.message.sender_address.as_hex.lower()
+        if actor == self.admin.lower():
+            return
+        for key in ("provider", "subscriber"):
+            if str(record.get(key, "")).lower() == actor:
+                return
+        raise Exception("record_operator_only")
+
+    def _has_open_filings(self, record: dict) -> bool:
+        for challenge_id in record.get("challengeIds", []):
+            try:
+                if json.loads(self.challenges[int(challenge_id)]).get("status") == "open":
+                    return True
+            except Exception:
+                continue
+        for appeal_id in record.get("appealIds", []):
+            try:
+                if json.loads(self.appeals[int(appeal_id)]).get("status") == "open":
+                    return True
+            except Exception:
+                continue
+        return False
 
     def _load_sla(self, sla_id: str) -> dict:
         idx = int(sla_id)
@@ -331,6 +371,7 @@ class Cadence(gl.Contract):
 
     @gl.public.write
     def set_cadence_standard(self, standard: str) -> str:
+        self._require_admin()
         self.clock += 1
         text = _s(standard, 1800)
         if text == "":
@@ -411,6 +452,7 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(sla_id)
+        self._require_operator(sla)
         if sla["status"] not in ("ACTIVE", "CHECKING", "CHECKED"):
             raise Exception("sla_locked")
         oid = str(len(self.objectives))
@@ -433,6 +475,7 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(sla_id)
+        self._require_operator(sla)
         if sla["status"] not in ("ACTIVE", "CHECKING", "CHECKED", "CHALLENGE_WINDOW"):
             raise Exception("sla_locked")
         clean = _clean_url(url)
@@ -457,6 +500,7 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(sla_id)
+        self._require_operator(sla)
         if sla["status"] not in ("ACTIVE", "CHECKED"):
             raise Exception("invalid_transition")
         before = sla["status"]
@@ -470,6 +514,7 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(sla_id)
+        self._require_operator(sla)
         if sla["status"] not in ("ACTIVE", "CHECKING", "CHECKED"):
             raise Exception("invalid_transition")
         if sla["status"] != "CHECKING":
@@ -506,6 +551,9 @@ class Cadence(gl.Contract):
         sla["summary"] = result["summary"]
         sla["rationale"] = result["rationale"]
         sla["riskFlags"] = result["riskFlags"]
+        sla["reviewedAt"] = str(_now())
+        sla["challengeDeadline"] = str(_now() + 3600)
+        sla["appealDeadline"] = "0"
         sla["checks"] = int(sla.get("checks", 0)) + 1
         if result["outcome"] == "healthy":
             sla["healthyChecks"] = int(sla.get("healthyChecks", 0)) + 1
@@ -521,11 +569,16 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(str(sla_id))
+        self._require_operator(sla)
         if sla["status"] in ("BREACHED", "CLOSED", "ARCHIVED"):
             raise Exception("SLA is not active")
-        if sla["outcome"] == "pending" or sla["status"] == "ACTIVE":
-            self.check_sla_with_genlayer(str(sla_id))
-            sla = self._load_sla(str(sla_id))
+        if sla["outcome"] == "pending" or sla["status"] not in ("CHECKED", "CHALLENGE_WINDOW", "APPEALED"):
+            raise Exception("not_reviewed")
+        if self._has_open_filings(sla):
+            raise Exception("open_filing_blocks_settlement")
+        maturity = max(int(sla.get("challengeDeadline", "0")), int(sla.get("appealDeadline", "0")))
+        if _now() < maturity:
+            raise Exception("review_not_mature")
         if sla["outcome"] == "breach":
             before = sla["status"]
             self._set_status(sla, "BREACHED")
@@ -541,10 +594,18 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(str(sla_id))
+        self._require_operator(sla)
         if sla["status"] in ("BREACHED", "CLOSED", "ARCHIVED"):
             raise Exception("only an active SLA can be closed")
         if actor.lower() != sla["provider"].lower():
             raise Exception("only the provider can close")
+        if self._has_open_filings(sla):
+            raise Exception("open_filing_blocks_settlement")
+        maturity = max(int(sla.get("challengeDeadline", "0")), int(sla.get("appealDeadline", "0")))
+        if sla["outcome"] == "pending" or _now() < maturity:
+            raise Exception("review_not_mature")
+        if sla["outcome"] == "breach":
+            raise Exception("breach_requires_settlement")
         before = sla["status"]
         self._set_status(sla, "CLOSED")
         self._pay(Address(sla["provider"]), u256(int(sla["bond"])))
@@ -556,8 +617,11 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(sla_id)
-        if sla["status"] not in ("CHECKED", "BREACHED", "CLOSED"):
+        self._require_operator(sla)
+        if sla["status"] != "CHECKED":
             raise Exception("invalid_transition")
+        if _now() > int(sla.get("challengeDeadline", "0")):
+            raise Exception("challenge_window_closed")
         before = sla["status"]
         self._set_status(sla, "CHALLENGE_WINDOW")
         self._add_audit(sla, actor, "open_challenge_window", "Challenge window opened.", before, "CHALLENGE_WINDOW")
@@ -570,6 +634,8 @@ class Cadence(gl.Contract):
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(sla_id)
         if sla["status"] != "CHALLENGE_WINDOW":
+            raise Exception("challenge_window_closed")
+        if _now() > int(sla.get("challengeDeadline", "0")):
             raise Exception("challenge_window_closed")
         chid = str(len(self.challenges))
         self.challenges.append(json.dumps({
@@ -594,6 +660,7 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(sla_id)
+        self._require_operator(sla)
         if sla["status"] != "CHALLENGE_WINDOW":
             raise Exception("invalid_transition")
         ch = json.loads(self.challenges[int(challenge_id)])
@@ -617,9 +684,11 @@ class Cadence(gl.Contract):
         self.challenges[int(challenge_id)] = json.dumps(ch)
         sla["confidenceBps"] = max(0, min(10000, int(sla["confidenceBps"]) + int(result["confidenceDeltaBps"])))
         if result["ruling"] in ("accepted", "partially_accepted"):
+            sla["outcome"] = result["revisedOutcome"]
             self._rep_bump(ch["challenger"], 55, "successfulChallenges")
         elif result["ruling"] == "rejected":
             self._rep_bump(ch["challenger"], -25, "failedChallenges")
+        sla["appealDeadline"] = str(_now() + 3600)
         self._add_audit(sla, actor, "resolve_challenge_with_genlayer", result["reason"], "CHALLENGE_WINDOW", "CHALLENGE_WINDOW")
         self._store_sla(sla)
         return result["ruling"]
@@ -631,6 +700,10 @@ class Cadence(gl.Contract):
         sla = self._load_sla(sla_id)
         if sla["status"] not in ("CHALLENGE_WINDOW", "APPEALED"):
             raise Exception("invalid_transition")
+        if self._has_open_filings(sla):
+            raise Exception("open_filing_blocks_appeal")
+        if len(sla["challengeIds"]) == 0 or _now() > int(sla.get("appealDeadline", "0")):
+            raise Exception("appeal_window_closed")
         aid = str(len(self.appeals))
         self.appeals.append(json.dumps({
             "id": aid,
@@ -656,6 +729,7 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(sla_id)
+        self._require_operator(sla)
         if sla["status"] != "APPEALED":
             raise Exception("invalid_transition")
         ap = json.loads(self.appeals[int(appeal_id)])
@@ -679,7 +753,9 @@ class Cadence(gl.Contract):
         self.appeals[int(appeal_id)] = json.dumps(ap)
         sla["confidenceBps"] = max(0, min(10000, int(sla["confidenceBps"]) + int(result["confidenceDeltaBps"])))
         if result["ruling"] in ("granted", "partially_granted"):
+            sla["outcome"] = result["revisedOutcome"]
             self._rep_bump(ap["appellant"], 45, "appealsGranted")
+        sla["appealDeadline"] = str(_now())
         before = sla["status"]
         self._set_status(sla, "CHALLENGE_WINDOW")
         self._add_audit(sla, actor, "resolve_appeal_with_genlayer", result["reason"], before, "CHALLENGE_WINDOW")
@@ -691,6 +767,9 @@ class Cadence(gl.Contract):
         self.clock += 1
         actor = gl.message.sender_address.as_hex
         sla = self._load_sla(sla_id)
+        self._require_operator(sla)
+        if self._has_open_filings(sla):
+            raise Exception("open_filing_blocks_archive")
         if sla["status"] not in ("BREACHED", "CLOSED", "CHALLENGE_WINDOW"):
             raise Exception("invalid_transition")
         before = sla["status"]

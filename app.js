@@ -1,11 +1,21 @@
 import { makeReader, write, connectWallet, activeAccount, balanceOf, short, toGen, GEN, fmtErr }
   from "./shared/genlayer-lite.js";
+import { mountReviewDesk } from "./shared/review-desk.js";
 
-const CONTRACT = "0x444E17A449fdECeEEB93eFA470C2833c7a6E3681";
+const CONTRACT = "0xA26d6730AfB85AeCfd543f25886D9d76dC77EB82";
 const { read } = makeReader(CONTRACT);
 const S_ACTIVE = 0, S_BREACHED = 1, S_CLOSED = 2;
 let account = null, slas = [], openRow = null;
 const $ = (id) => document.getElementById(id);
+
+queueMicrotask(() => mountReviewDesk({
+  contract: CONTRACT, read, write, ensureWallet, fmtErr,
+  entity: "SLA", countMethod: "get_sla_count", recordMethod: "get_sla_record",
+  openWindowMethod: "open_challenge_window", submitChallengeMethod: "submit_challenge", resolveChallengeMethod: "resolve_challenge_with_genlayer",
+  submitAppealMethod: "submit_appeal", resolveAppealMethod: "resolve_appeal_with_genlayer", archiveMethod: "archive_sla",
+  variant: "rail", kicker: "Service-level escalation", title: "Cadence escalation lane",
+  intro: "Audit the latest service check, raise a precise breach claim, and keep closure unavailable until review and appeal are complete.",
+}));
 const esc = (s) => (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (_) { return u; } };
 
@@ -29,15 +39,19 @@ async function ensureWallet() { if (!account) account = await connectWallet(); a
 async function load() {
   try {
     const count = Number(await read("get_sla_count"));
-    const out = [];
-    for (let i = 0; i < count; i++) out.push({ id: i, ...(await read("get_sla", [i])) });
+    const out = await Promise.all(Array.from({ length: count }, (_, i) => read("get_sla", [i]).then((record) => ({ id: i, ...record }))));
     slas = out; renderBanner(); renderBoard();
     $("svcCount").textContent = count + (count === 1 ? " service" : " services");
     const breached = out.filter((s) => Number(s.status) === S_BREACHED).length;
     $("stOperational").textContent = out.filter((s) => Number(s.status) === S_ACTIVE).length;
     $("stBreached").textContent = breached;
     $("stBonded").textContent = toGen(out.filter((s) => Number(s.status) === S_ACTIVE).reduce((a, s) => a + BigInt(s.bond), 0n).toString());
-  } catch (e) { $("board").innerHTML = `<div class="b-empty">Could not reach the chain. ${fmtErr(e)}</div>`; }
+  } catch (e) {
+    $("board").innerHTML = `<div class="b-empty">Could not reach the chain. ${fmtErr(e)}</div>`;
+    $("sbHeadline").textContent = "Status unavailable";
+    $("sbSub").textContent = "Use Sync to retry the Studionet read.";
+    $("statusBanner").className = "status-banner";
+  }
 }
 
 function renderBanner() {

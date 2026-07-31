@@ -10,15 +10,16 @@ Cadence is built for timing disputes: whether a deadline was met, a release happ
 | --- | --- |
 | Live app | https://assmore22-cadence.vercel.app |
 | GitHub | https://github.com/assmore22/cadence |
-| Contract | https://explorer-bradbury.genlayer.com/address/0x444E17A449fdECeEEB93eFA470C2833c7a6E3681 |
+| Contract | https://explorer-bradbury.genlayer.com/address/0xA26d6730AfB85AeCfd543f25886D9d76dC77EB82 |
 
 ## Chain Record
 
 - Network: GenLayer Bradbury
 - Chain ID: 4221
-- Contract: `0x444E17A449fdECeEEB93eFA470C2833c7a6E3681`
-- Deploy transaction: [0x096e87a3...01d338](https://explorer-bradbury.genlayer.com/tx/0x096e87a333589a156b000b5c1235a43e2953f7bc9201f122edff2048a701d338)
-- Deployed: `2026-07-01T15:52:01.109Z`
+- Contract: `0xA26d6730AfB85AeCfd543f25886D9d76dC77EB82`
+- Deployer: `0x07A12871217d82ADE643Ef8c4EfC27e14F10A649`
+- Deploy transaction: [0x8d759866...8f2ca5](https://explorer-bradbury.genlayer.com/tx/0x8d759866f29d4ba199f34bc4bda95411da576d2f691c191902dcc2b23d8f2ca5)
+- Deployed: `2026-07-26T19:35:50.377Z`
 - Source: `contracts/cadence_v2.py` (36,749 bytes)
 
 ## Protocol Path
@@ -35,9 +36,9 @@ The frontend reads milestones, open reviews, recent records and status-filtered 
 
 | Action | Transaction |
 | --- | --- |
-| `set_cadence_standard` | [0x28af6a3f...e97e1f](https://explorer-bradbury.genlayer.com/tx/0x28af6a3f0c9ec5e454d00d4ac5ac78f5cc7ab4626d0f72f44f1c229659e97e1f) |
+| `draft_sla` | [0x5d8b624a...b65c09](https://explorer-bradbury.genlayer.com/tx/0x5d8b624ad77fd64b45828fb566eaa17885f2cdad8d885a2794b6d30550b65c09) |
 
-Read verification passed on Bradbury after deploy. The public app points at this contract address and reads accepted state.
+The deployment and domain smoke transaction are finalized on Bradbury. The public app is pinned to this contract address.
 
 ## Local Run
 

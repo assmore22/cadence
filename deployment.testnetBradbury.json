@@ -5,11 +5,17 @@
   "chainId": 4221,
   "rpc": "https://rpc-bradbury.genlayer.com",
   "explorer": "https://explorer-bradbury.genlayer.com",
-  "contractAddress": "0x444E17A449fdECeEEB93eFA470C2833c7a6E3681",
-  "deployTxHash": "0x096e87a333589a156b000b5c1235a43e2953f7bc9201f122edff2048a701d338",
-  "contractExplorer": "https://explorer-bradbury.genlayer.com/address/0x444E17A449fdECeEEB93eFA470C2833c7a6E3681",
-  "deployer": "0xdAa923b817C6116f2463957542FB29F6Ba671FE8",
-  "deployedAt": "2026-07-01T15:52:01.109Z",
-  "statusName": 5,
-  "smoke": {}
+  "contractAddress": "0xA26d6730AfB85AeCfd543f25886D9d76dC77EB82",
+  "deployTxHash": "0x8d759866f29d4ba199f34bc4bda95411da576d2f691c191902dcc2b23d8f2ca5",
+  "contractExplorer": "https://explorer-bradbury.genlayer.com/address/0xA26d6730AfB85AeCfd543f25886D9d76dC77EB82",
+  "deployer": "0x07A12871217d82ADE643Ef8c4EfC27e14F10A649",
+  "deployedAt": "2026-07-26T19:35:50.377Z",
+  "statusName": "FINALIZED",
+  "smoke": {
+    "draft_sla": "0x5d8b624ad77fd64b45828fb566eaa17885f2cdad8d885a2794b6d30550b65c09",
+    "verifiedCountView": "get_sla_count",
+    "verifiedCount": null,
+    "readVerification": "pending-rpc-sync",
+    "verifiedAt": "2026-07-26T21:04:23.980Z"
+  }
 }
