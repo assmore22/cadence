@@ -8,7 +8,7 @@ Cadence is built for timing disputes: whether a deadline was met, a release happ
 
 | Surface | Link |
 | --- | --- |
-| Live app | https://tanawo3-cadence.vercel.app |
+| Live app | https://cadence-milestones.vercel.app |
 | GitHub | https://github.com/assmore22/cadence |
 | Contract | https://explorer-bradbury.genlayer.com/address/0xA26d6730AfB85AeCfd543f25886D9d76dC77EB82 |
 
